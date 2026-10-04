@@ -70,4 +70,337 @@ let U=null, P=null, reg=false, userLoc={lat:null, lng:null};
 function getDistance(lat1, lon1, lat2, lon2) {
   if(!lat1 || !lat2) return null;
   const R = 6371; // نصف قطر الأرض بالكيلومتر
-  const dLat = (lat2 - lat1) * Math
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return (R * c).toFixed(1); // المسافة بالكيلومتر
+}
+
+const $=s=>document.querySelector(s), v=$('#v');
+const esc=t=>String(t??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+onAuthStateChanged(au, async u => {
+  U = u; P = null;
+  if (u && !reg) {
+    try {
+      const s = await getDoc(doc(db, 'users', u.uid));
+      P = s.exists() ? s.data() : null;
+      if(P) $('#user-indicator').textContent = P.role === 'employer' ? '🏢 صاحب عمل' : '👤 باحث عن عمل';
+    } catch(e) { console.error(e); }
+  }
+  if (!u) location.hash = '#/auth';
+  else if (!reg && (!location.hash || location.hash === '#/auth')) location.hash = '#/jobs';
+  go();
+});
+
+addEventListener('hashchange', go);
+
+function go() {
+  const h = location.hash.slice(2) || 'jobs';
+  $('#nv').innerHTML = U && P ? `
+    <a href="#/jobs" class="${h=='jobs'?'on':''}">📋 الوظائف</a>
+    ${P.role==='employer' ? `<a href="#/seekers" class="${h=='seekers'?'on':''}">👥 الباحثون</a>` : `<a href="#/me" class="${h=='me'?'on':''}">⚙️ ملفي</a>`}
+    <a href="#/shaghool" class="${h=='shaghool'?'on':''}">🤖 شَغّول</a>
+    <a href="#/out" style="color:var(--danger)">خروج</a>
+  ` : '';
+  
+  if (!U) return authV();
+  if (!P) { v.innerHTML = '<p class="m">جاري تحميل البيانات...</p>'; return; }
+  if (h === 'out') { signOut(au); return; }
+  
+  ({jobs:jobsV, seekers:seekersV, me:meV, shaghool:shV}[h] || jobsV)();
+}
+
+async function load(el, fn) {
+  el.innerHTML = '<p class="m">جاري التحميل…</p>';
+  try { el.innerHTML = await fn(); }
+  catch(e) { el.innerHTML = `<p class="er">تعذّر التحميل: ${esc(e.code||e.message)}</p>`; }
+}
+
+const recent = a => a.sort((x,y) => (y.createdAt?.seconds||0) - (x.createdAt?.seconds||0));
+
+// ==================== صفحة الدخول والتسجيل ====================
+function authV() {
+  let mode = 'in';
+  v.innerHTML = `
+    <div class="box">
+      <div class="tabs">
+        <button id="ti" class="on">تسجيل الدخول</button>
+        <button id="tr">حساب جديد</button>
+      </div>
+      <div id="rg" hidden>
+        <label>نوع الحساب</label>
+        <select id="ro">
+          <option value="seeker">👤 باحث عن عمل</option>
+          <option value="employer">🏢 صاحب عمل / شركة</option>
+        </select>
+        <input id="nm" placeholder="الاسم الكامل أو اسم الشركة">
+        <input id="ct" placeholder="المدينة / المنطقة">
+        <button class="loc-btn" id="locBtn">📍 تحديد موقعي الجغرافي (GPS)</button>
+        <div id="locStatus" class="loc-status"></div>
+      </div>
+      <label>البريد الإلكتروني</label>
+      <input id="em" type="email" dir="ltr" placeholder="example@mail.com">
+      <label>كلمة المرور</label>
+      <input id="pw" type="password" dir="ltr" placeholder="6 أحرف على الأقل">
+      <button class="p" id="sb" style="width:100%;margin-top:12px">دخول</button>
+      <p id="er" class="er" style="text-align:center;margin-top:8px"></p>
+    </div>`;
+
+  const set = m => {
+    mode = m; $('#rg').hidden = m === 'in';
+    $('#ti').className = m === 'in' ? 'on' : '';
+    $('#tr').className = m === 'in' ? '' : 'on';
+    $('#sb').textContent = m === 'in' ? 'تسجيل الدخول' : 'إنشاء الحساب';
+  };
+  $('#ti').onclick = () => set('in');
+  $('#tr').onclick = () => set('up');
+
+  $('#locBtn').onclick = () => {
+    const status = $('#locStatus');
+    status.textContent = 'جاري تحديد الموقع...'; status.className = 'loc-status';
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          userLoc.lat = pos.coords.latitude;
+          userLoc.lng = pos.coords.longitude;
+          status.textContent = `✅ تم تحديد الموقع: ${userLoc.lat.toFixed(4)}, ${userLoc.lng.toFixed(4)}`;
+          status.className = 'loc-status ok';
+        },
+        err => {
+          status.textContent = '❌ تعذر الوصول للموقع. يرجى تفعيل GPS.';
+          status.className = 'loc-status err';
+        }
+      );
+    } else {
+      status.textContent = '❌ المتصفح لا يدعم تحديد الموقع.';
+      status.className = 'loc-status err';
+    }
+  };
+
+  $('#sb').onclick = async () => {
+    const e = $('#em').value.trim(), p = $('#pw').value, er = $('#er');
+    er.textContent = '';
+    try {
+      if (mode === 'in') {
+        await signInWithEmailAndPassword(au, e, p);
+      } else {
+        const nm = $('#nm').value.trim(), ct = $('#ct').value.trim(), ro = $('#ro').value;
+        if (!nm || !ct) { er.textContent = 'يرجى كتابة الاسم والمدينة'; return; }
+        reg = true;
+        const c = await createUserWithEmailAndPassword(au, e, p);
+        const d = { role: ro, name: nm, city: ct, lat: userLoc.lat, lng: userLoc.lng, createdAt: serverTimestamp() };
+        await setDoc(doc(db, 'users', c.user.uid), d);
+        P = d; reg = false; location.hash = '#/jobs'; go();
+      }
+    } catch(x) {
+      reg = false;
+      const errors = {'auth/invalid-credential':'الإيميل أو كلمة المرور غير صحيحة','auth/email-already-in-use':'هذا الإيميل مسجّل من قبل','auth/weak-password':'كلمة المرور ضعيفة (6 أحرف على الأقل)','auth/invalid-email':'الإيميل غير صحيح'};
+      er.textContent = errors[x.code] || ('خطأ: ' + (x.code || x.message));
+    }
+  };
+}
+
+// ==================== صفحة الوظائف ====================
+function jobsV() {
+  v.innerHTML = (P.role === 'employer' ? `
+    <div class="box">
+      <b>➕ إضافة وظيفة جديدة</b>
+      <input id="jt" placeholder="المسمى الوظيفي (مثال: محاسب)">
+      <input id="jc" placeholder="المدينة" value="${esc(P.city)}">
+      <textarea id="jd" rows="3" placeholder="وصف الوظيفة والمتطلبات"></textarea>
+      <input id="jp" dir="ltr" placeholder="رقم الهاتف للتواصل">
+      <button class="p" id="ja" style="width:100%;margin-top:8px">نشر الوظيفة</button>
+      <p id="jm" class="m"></p>
+    </div>` : '') + '<h3 style="margin:15px 0 10px">📋 الوظائف المتاحة</h3><div id="ls"></div>';
+
+  if (P.role === 'employer') {
+    $('#ja').onclick = async () => {
+      const t = $('#jt').value.trim(), d = $('#jd').value.trim(), c = $('#jc').value.trim(), p = $('#jp').value.trim();
+      if (!t || !d || !p) { $('#jm').textContent = 'يرجى إكمال جميع الحقول'; return; }
+      try {
+        await addDoc(collection(db, 'jobs'), {
+          title: t, company: P.name, city: c, desc: d, contact: p,
+          owner: U.uid, lat: P.lat, lng: P.lng, status: 'approved', createdAt: serverTimestamp()
+        });
+        $('#jm').textContent = '✅ تمت إضافة الوظيفة بنجاح'; $('#jt').value = $('#jd').value = '';
+        jobsV(); // Refresh
+      } catch(e) { $('#jm').textContent = 'تعذّرت الإضافة: ' + (e.code || e.message); }
+    };
+  }
+
+  load($('#ls'), async () => {
+    const s = await getDocs(query(collection(db, 'jobs'), where('status', '==', 'approved'), limit(50)));
+    const a = recent(s.docs.map(d => ({ id: d.id, ...d.data() })));
+    if (!a.length) return '<p class="m">لا توجد وظائف معتمدة بعد.</p>';
+    
+    return a.map(j => {
+      const dist = getDistance(P.lat, P.lng, j.lat, j.lng);
+      const distBadge = dist ? `<span class="dist-badge">📍 يبعد ${dist} كم</span>` : '';
+      return `<div class="cd">
+        <b>${esc(j.title)}</b> <small>${esc(j.company)} · ${esc(j.city)} ${distBadge}</small>
+        <p>${esc(j.desc)}</p>
+        <small>📞 ${esc(j.contact)}</small>
+      </div>`;
+    }).join('');
+  });
+}
+
+// ==================== صفحة الباحثين عن عمل ====================
+function seekersV() {
+  if (P.role !== 'employer') { v.innerHTML = '<p class="m">هذه الصفحة متاحة لأصحاب العمل فقط.</p>'; return; }
+  v.innerHTML = '<h3 style="margin:15px 0 10px">👥 الباحثون عن عمل</h3><div id="ls"></div>';
+  
+  load($('#ls'), async () => {
+    const s = await getDocs(query(collection(db, 'seekers'), where('visible', '==', true), limit(50)));
+    const a = recent(s.docs.map(d => ({ id: d.id, ...d.data() })));
+    if (!a.length) return '<p class="m">لا يوجد باحثون عن عمل مسجلون بعد.</p>';
+    
+    return a.map(s => {
+      const dist = getDistance(P.lat, P.lng, s.lat, s.lng);
+      const distBadge = dist ? `<span class="dist-badge">📍 يبعد ${dist} كم</span>` : '';
+      return `<div class="cd">
+        <b>${esc(s.name)}</b> <small>${esc(s.profession)} · ${esc(s.city)} · خبرة: ${esc(s.experience)} سنة ${distBadge}</small>
+        <p>${esc(s.about)}</p>
+        <small>📞 ${esc(s.phone)}</small>
+      </div>`;
+    }).join('');
+  });
+}
+
+// ==================== صفحة البروفايل ====================
+async function meV() {
+  let d = {};
+  try {
+    const col = P.role === 'employer' ? 'employers' : 'seekers';
+    const s = await getDoc(doc(db, col, U.uid));
+    if (s.exists()) d = s.data();
+  } catch(e) {}
+
+  if (P.role === 'employer') {
+    v.innerHTML = `
+      <div class="box">
+        <b>🏢 ملف الشركة / صاحب العمل</b>
+        <label>اسم الشركة</label><input id="en" value="${esc(d.name || P.name)}">
+        <label>المدينة</label><input id="ec" value="${esc(d.city || P.city)}">
+        <label>وصف النشاط</label><textarea id="ed" rows="3">${esc(d.desc)}</textarea>
+        <label>رقم الهاتف</label><input id="ep" dir="ltr" value="${esc(d.phone)}">
+        <button class="p" id="sv" style="width:100%;margin-top:12px">حفظ التعديلات</button>
+        <p id="sm" class="m"></p>
+      </div>`;
+    $('#sv').onclick = async () => {
+      try {
+        await setDoc(doc(db, 'employers', U.uid), {
+          name: $('#en').value.trim(), city: $('#ec').value.trim(),
+          desc: $('#ed').value.trim(), phone: $('#ep').value.trim(),
+          lat: P.lat, lng: P.lng, updatedAt: serverTimestamp()
+        }, { merge: true });
+        $('#sm').textContent = '✅ تم حفظ البيانات بنجاح';
+      } catch(e) { $('#sm').textContent = 'تعذّر الحفظ: ' + (e.code || e.message); }
+    };
+  } else {
+    v.innerHTML = `
+      <div class="box">
+        <b>👤 ملفي الشخصي</b>
+        <label>المهنة المطلوبة</label><input id="pf" value="${esc(d.profession)}">
+        <label>سنوات الخبرة</label><input id="ex" value="${esc(d.experience)}">
+        <label>نبذة عنك ومهاراتك</label><textarea id="ab" rows="3">${esc(d.about)}</textarea>
+        <label>رقم الهاتف</label><input id="ph" dir="ltr" value="${esc(d.phone)}">
+        <label style="display:flex;align-items:center;gap:8px;margin-top:12px">
+          <input type="checkbox" id="vs" style="width:auto" ${d.visible ? 'checked' : ''}> 
+          أسمح لأصحاب العمل بمشاهدة ملفي ورقم هاتفي
+        </label>
+        <button class="p" id="sv" style="width:100%;margin-top:12px">حفظ التعديلات</button>
+        <p id="sm" class="m"></p>
+      </div>`;
+    $('#sv').onclick = async () => {
+      try {
+        await setDoc(doc(db, 'seekers', U.uid), {
+          name: P.name, city: P.city, lat: P.lat, lng: P.lng,
+          profession: $('#pf').value.trim(), experience: $('#ex').value.trim(),
+          about: $('#ab').value.trim(), phone: $('#ph').value.trim(),
+          visible: $('#vs').checked, updatedAt: serverTimestamp()
+        }, { merge: true });
+        $('#sm').textContent = '✅ تم حفظ البيانات بنجاح';
+      } catch(e) { $('#sm').textContent = 'تعذّر الحفظ: ' + (e.code || e.message); }
+    };
+  }
+}
+
+// ==================== صفحة شَغّول (المساعد الذكي) ====================
+function shV() {
+  v.innerHTML = `
+    <div class="box" style="margin-bottom:0;padding:10px">
+      <b>🤖 مساعد شَغّول الذكي</b>
+      <small class="m">اسألني عن وظائف، أو اطلب مني البحث عن مرشحين مناسبين لك.</small>
+    </div>
+    <div id="ch"></div>
+    <div class="typing" id="typing">شغول يكتب الآن...</div>
+    <div id="cs">
+      <input id="ci" placeholder="اكتب رسالتك هنا…" enterkeyhint="send">
+      <button class="p" id="cg">إرسال</button>
+    </div>`;
+    
+  const ch = $('#ch'), ci = $('#ci');
+  const add = (k, h) => {
+    const r = document.createElement('div');
+    r.className = 'row ' + k;
+    r.innerHTML = k === 's' 
+      ? `<div class="av">🧠</div><div class="b">${h}</div>` 
+      : `<div class="b">${h}</div>`;
+    ch.appendChild(r);
+    ch.scrollTop = ch.scrollHeight;
+  };
+
+  const emp = P.role === 'employer';
+  add('s', emp ? 'أهلاً بك! 👋 أنا "شَغول". أخبرني بنوع الوظيفة والمدينة التي تبحث فيها، وسأبحث لك في قاعدة البيانات فوراً.' : 'أهلاً بك! 👋 أنا "شَغول". أخبرني بالمهنة التي تبحث عنها والمدينة، وسأجد لك أفضل الفرص المتاحة.');
+
+  const send = async () => {
+    const t = ci.value.trim();
+    if (!t) return;
+    ci.value = ''; ci.focus();
+    add('u', esc(t));
+    
+    // محاكاة التفكير (جاهزة للاستبدال بـ Groq API لاحقاً)
+    $('#typing').style.display = 'block';
+    await new Promise(r => setTimeout(r, 1000)); // تأخير 1 ثانية
+    $('#typing').style.display = 'none';
+
+    // بحث بسيط بالكلمات المفتاحية (سيتم استبداله بـ LLM لاحقاً)
+    const words = t.toLowerCase().split(/\s+/).filter(x => x.length > 2);
+    try {
+      const q = emp 
+        ? query(collection(db, 'seekers'), where('visible', '==', true), limit(50))
+        : query(collection(db, 'jobs'), where('status', '==', 'approved'), limit(50));
+      
+      const s = await getDocs(q);
+      const a = s.docs.map(d => d.data()).filter(x => {
+        const text = Object.values(x).filter(z => typeof z === 'string').join(' ').toLowerCase();
+        return words.some(k => text.includes(k));
+      }).slice(0, 3);
+
+      if (!a.length) {
+        add('s', '🔍 بحثت في قاعدة البيانات، لكن لم أجد نتائج مطابقة تماماً. جرب استخدام كلمات مختلفة (مثل: محاسب، رياض، سائق).');
+      } else {
+        add('s', `✅ وجدت لك ${a.length} نتائج مناسبة بناءً على طلبك 👇`);
+        // هنا يمكن تحسين العرض لاحقاً
+        const html = a.map(item => {
+          if(emp) return `<div class="cd" style="margin-top:8px"><b>${esc(item.name)}</b><small>${esc(item.profession)} · ${esc(item.city)}</small><p>${esc(item.about)}</p></div>`;
+          return `<div class="cd" style="margin-top:8px"><b>${esc(item.title)}</b><small>${esc(item.company)} · ${esc(item.city)}</small><p>${esc(item.desc)}</p></div>`;
+        }).join('');
+        add('c', html);
+      }
+    } catch(e) {
+      add('s', '⚠️ حدث خطأ أثناء البحث: ' + esc(e.code || e.message));
+    }
+  };
+
+  $('#cg').onclick = send;
+  ci.onkeydown = e => { if (e.key === 'Enter') send(); };
+}
+</script>
+</body>
+</html>
