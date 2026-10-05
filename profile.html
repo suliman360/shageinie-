@@ -23,31 +23,42 @@ nav a{flex:1;text-align:center;padding:14px 4px;color:var(--muted);text-decorati
 .chimg{width:40px;height:40px;border-radius:50%;flex:none}.b{max-width:80%;padding:10px 14px;border-radius:18px;line-height:1.7}.u .b{background:#e6ebf4;color:#16233a}.s .b{background:#e3f3e6;color:#16233a}
 #cs{display:flex;gap:8px;position:sticky;bottom:0;background:var(--bg);padding:8px 0}#cs input{margin:0}#cs button{width:auto;margin:0}</style></head><body><div id="app"><header>شغلني<button id="lo">خروج</button></header><main>
 <div class="box"><div class="top"><div class="av" id="av">…</div><div><b id="hn" style="font-size:18px">جاري التحميل…</b><br><span class="tag" id="hr"></span><div class="m" id="he" dir="ltr" style="font-size:13px;margin-top:4px"></div></div></div></div>
-<div class="box" id="fm" hidden></div><p class="m" id="up" style="text-align:center;font-size:13px"></p></main><nav id="nv"></nav></div>
+<div class="box" id="fm" hidden></div>
+<div class="box" id="ac" hidden><b>إعدادات الحساب</b><label>البريد الحالي</label><div class="m" id="ce0" dir="ltr"></div>
+<label>تغيير البريد الإلكتروني</label><input id="ne" type="email" dir="ltr" placeholder="البريد الجديد"><input id="cp" type="password" dir="ltr" placeholder="كلمة المرور الحالية للتأكيد">
+<button class="p" id="ce">تغيير البريد</button><button style="width:100%;margin-top:8px" id="rp">أرسل لي رابط تغيير كلمة السر</button><p id="am"></p></div><p class="m" id="up" style="text-align:center;font-size:13px"></p></main><nav id="nv"></nav></div>
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
 const cfg={apiKey:"AIzaSyBOSymlBsytF8zuMQOcMcCx1i-hhq0JwNg",authDomain:"shagool.firebaseapp.com",databaseURL:"https://shagool-default-rtdb.firebaseio.com",projectId:"shagool",storageBucket:"shagool.firebasestorage.app",messagingSenderId:"517694924484",appId:"1:517694924484:web:b33ec750f167dcb275cb91"};
 const $=s=>document.querySelector(s),esc=t=>String(t??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-import{getAuth,onAuthStateChanged,signOut}from"https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+import{getAuth,onAuthStateChanged,signOut,EmailAuthProvider,reauthenticateWithCredential,verifyBeforeUpdateEmail,sendPasswordResetEmail}from"https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 import{getDatabase,ref,onValue,update,serverTimestamp}from"https://www.gstatic.com/firebasejs/12.19.0/firebase-database.js";
 const app=initializeApp(cfg),au=getAuth(app),db=getDatabase(app);
-const F={employer:[['name','اسم الشركة'],['title','مسماك الوظيفي في الشركة'],['city','المدينة'],['sector','مجال عمل الشركة'],['phone','رقم التواصل'],['link','موقع أو صفحة الشركة'],['about','نبذة عن الشركة','t']],
- seeker:[['name','الاسم الكامل'],['city','المدينة'],['profession','المسمى الوظيفي (مثال: محاسب)'],['experience','سنوات الخبرة'],['phone','رقم الهاتف'],['about','نبذة عنك ومهاراتك','t']]};
+const F={employer:[['name','اسم الشركة'],['title','مسماك الوظيفي في الشركة'],['city','المدينة'],['address','الحي / العنوان بالتفصيل'],['sector','مجال عمل الشركة'],['phone','رقم التواصل'],['link','موقع أو صفحة الشركة'],['about','نبذة عن الشركة','t']],
+ seeker:[['name','الاسم الكامل'],['city','المدينة'],['address','الحي / العنوان بالتفصيل'],['profession','المسمى الوظيفي (مثال: محاسب)'],['experience','سنوات الخبرة'],['phone','رقم الهاتف'],['about','نبذة عنك ومهاراتك','t']]};
 const RL={employer:'صاحب عمل / شركة',seeker:'باحث عن عمل'};
 let uid=null,first=true;
 const PG=[['jobs.html','وظائف'],['seekers.html','باحثون','e'],['shaghool.html','شَغّول'],['profile.html','حسابي']];
 function nav(r){$('#nv').innerHTML=PG.filter(p=>p[2]!='e'||r=='employer').map(p=>`<a href="${p[0]}" class="${location.pathname.endsWith(p[0])?'on':''}">${p[1]}</a>`).join('')}
 $('#lo').onclick=()=>signOut(au);
-onAuthStateChanged(au,u=>{if(!u||!u.emailVerified){location.href='login.html';return}uid=u.uid;$('#he').textContent=u.email+' ✓';
+onAuthStateChanged(au,u=>{if(!u||!u.emailVerified){location.href='login.html';return}uid=u.uid;acct(u);$('#he').textContent=u.email+' ✓';
  onValue(ref(db,'users/'+uid),s=>{const d=s.val();if(!d){$('#hn').textContent='لا توجد بيانات لهذا الحساب';return}
-  $('#hn').textContent=d.name||'';$('#av').textContent=(d.name||'?')[0];$('#hr').textContent=RL[d.role]||'';nav(d.role);
+  if(d.email!==u.email)update(ref(db,'users/'+uid),{email:u.email});$('#hn').textContent=d.name||'';$('#av').textContent=(d.name||'?')[0];$('#hr').textContent=RL[d.role]||'';nav(d.role);
   $('#up').textContent=d.updatedAt?'آخر تحديث: '+new Date(d.updatedAt).toLocaleString('ar'):'';
   if(first){first=false;build(d)}},e=>{$('#hn').textContent='تعذّر القراءة: '+e.code})});
+function acct(u){$('#ac').hidden=false;$('#ce0').textContent=u.email;const am=$('#am'),E={'auth/invalid-credential':'كلمة المرور غير صحيحة','auth/wrong-password':'كلمة المرور غير صحيحة','auth/email-already-in-use':'هذا البريد مستخدم من حساب آخر','auth/invalid-email':'البريد غير صحيح','auth/requires-recent-login':'سجّل الخروج وادخل من جديد ثم أعد المحاولة','auth/too-many-requests':'محاولات كثيرة، انتظر قليلًا'};
+ const say=(t,ok)=>{am.textContent=t;am.className=ok?'ok':'er'};
+ $('#ce').onclick=async()=>{const n=$('#ne').value.trim(),p=$('#cp').value;if(!n||!p)return say('اكتب البريد الجديد وكلمة المرور الحالية');
+  try{await reauthenticateWithCredential(u,EmailAuthProvider.credential(u.email,p));await verifyBeforeUpdateEmail(u,n);say('أرسلنا رابط تأكيد إلى البريد الجديد. اضغطه ثم سجّل الدخول بالبريد الجديد.',1)}catch(x){say(E[x.code]||('خطأ: '+x.code))}};
+ $('#rp').onclick=async()=>{try{await sendPasswordResetEmail(au,u.email);say('أرسلنا رابط تغيير كلمة السر إلى '+u.email,1)}catch(x){say(E[x.code]||('خطأ: '+x.code))}}}
 function build(d){const fm=$('#fm');fm.hidden=false;
  fm.innerHTML=F[d.role].map(([k,l,t])=>`<label>${l}</label>`+(t?`<textarea id="f_${k}" rows="3">${esc(d[k])}</textarea>`:`<input id="f_${k}" value="${esc(d[k])}">`)).join('')
  +(d.role=='seeker'?`<label class="chk"><input type="checkbox" id="f_visible" ${d.visible?'checked':''}> أسمح لأصحاب العمل برؤية ملفي</label>`:'')
- +'<label>الموقع (يُستخدم لحساب المسافة)</label><div class="m" id="lc"></div><button id="gp" style="width:100%;margin-top:6px">📍 حدّد موقعي الحالي</button><button class="p" id="sv">حفظ التعديلات</button><p id="sm"></p>';
+ +'<label>الموقع (يُستخدم لحساب المسافة)</label><div class="m" id="lc"></div><button id="gp" style="width:100%;margin-top:6px">📍 حدّد موقعي الحالي</button><input id="pl" dir="ltr" placeholder="أو الصق إحداثيات أو رابط من خرائط Google"><button id="pb" style="width:100%">حفظ الموقع من الإحداثيات</button><button class="p" id="sv">حفظ التعديلات</button><p id="sm"></p>';
  const lcs=(a,b,t)=>{$('#lc').textContent=a!=null?`✓ محفوظ (${a.toFixed(4)}, ${b.toFixed(4)})${t?' · '+new Date(t).toLocaleDateString('ar'):''}`:'لم تحدد موقعك بعد'};lcs(d.lat,d.lng,d.locAt);
+ $('#pb').onclick=async()=>{const m=$('#pl').value.match(/(-?\d{1,2}\.\d+)\s*[,،\s]\s*(-?\d{1,3}\.\d+)/);if(!m){$('#lc').textContent='لم أجد إحداثيات. مثال: 15.5007, 32.5599 أو رابط طويل من خرائط Google';return}
+ const a=+m[1],b=+m[2];if(Math.abs(a)>90||Math.abs(b)>180){$('#lc').textContent='الإحداثيات غير صحيحة';return}
+ try{await update(ref(db,'users/'+uid),{lat:a,lng:b,locAt:Date.now(),updatedAt:serverTimestamp()});lcs(a,b,Date.now())}catch(e){$('#lc').textContent='تعذّر الحفظ: '+e.code}};
  $('#gp').onclick=()=>{$('#lc').textContent='جاري تحديد الموقع… اسمح للمتصفح بذلك';navigator.geolocation?navigator.geolocation.getCurrentPosition(async p=>{try{await update(ref(db,'users/'+uid),{lat:p.coords.latitude,lng:p.coords.longitude,locAt:Date.now(),updatedAt:serverTimestamp()});lcs(p.coords.latitude,p.coords.longitude,Date.now())}catch(e){$('#lc').textContent='تعذّر الحفظ: '+e.code}},e=>{$('#lc').textContent='تعذّر تحديد الموقع: '+(e.code==1?'لم تسمح بالوصول للموقع':'حاول مرة أخرى')},{enableHighAccuracy:true,timeout:15000}):$('#lc').textContent='المتصفح لا يدعم تحديد الموقع'};
  $('#sv').onclick=async()=>{const o={updatedAt:serverTimestamp()};F[d.role].forEach(([k])=>o[k]=$('#f_'+k).value.trim());if(d.role=='seeker')o.visible=$('#f_visible').checked;
   try{await update(ref(db,'users/'+uid),o);$('#sm').textContent='تم الحفظ ✓';$('#sm').className='ok'}catch(e){$('#sm').textContent='تعذّر الحفظ: '+e.code;$('#sm').className='er'}}}
