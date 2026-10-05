@@ -1,0 +1,52 @@
+<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>شغلني - الباحثون</title><style>
+:root{--navy:#12305a;--green:#3fae5a;--bg:#f4f6f9;--card:#fff;--text:#16233a;--muted:#6b7a90;--line:#e3e8ef}
+@media(prefers-color-scheme:dark){:root{--bg:#0d1420;--card:#172236;--text:#e8eef7;--muted:#93a3ba;--line:#26344c}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px "Segoe UI",Tahoma,Arial,sans-serif}
+#app{max-width:520px;margin:auto;min-height:100vh}
+header{background:var(--navy);color:#fff;font-weight:800;font-size:24px;padding:16px 18px;border-radius:0 0 24px 24px;display:flex;justify-content:space-between;align-items:center}
+header button{background:transparent;color:#fff;border:1px solid #ffffff88;font-size:14px;padding:6px 12px}
+main{padding:16px}.box{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:14px}
+input,select,textarea{width:100%;font:inherit;font-size:16px;padding:12px 14px;margin:5px 0;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--text)}
+button{font:inherit;cursor:pointer;border-radius:12px;padding:11px 16px;background:var(--card);color:var(--text);border:1px solid var(--line)}
+.p{background:var(--green);color:#fff;border-color:var(--green);font-weight:700;width:100%;margin-top:8px}
+.tabs{display:flex;gap:8px;margin-bottom:10px}.tabs button{flex:1}.tabs .on{background:var(--green);color:#fff;border-color:var(--green);font-weight:700}
+a{color:var(--green)}label{color:var(--muted);font-size:13px;display:block;margin-top:8px}
+.er{color:#d33}.ok{color:#2a9d4a}.m{color:var(--muted)}p{line-height:1.7}
+.top{display:flex;gap:14px;align-items:center}.av{width:62px;height:62px;border-radius:50%;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;flex:none}
+.tag{display:inline-block;background:#3fae5a22;color:var(--green);border-radius:99px;padding:2px 12px;font-size:13px;font-weight:700}
+.chk{display:flex;gap:8px;align-items:center;margin-top:12px;color:var(--text);font-size:15px}.chk input{width:auto;margin:0}
+#app{display:flex;flex-direction:column}main{flex:1}
+nav{position:sticky;bottom:0;display:flex;background:var(--card);border-top:1px solid var(--line)}
+nav a{flex:1;text-align:center;padding:14px 4px;color:var(--muted);text-decoration:none;font-weight:700}nav a.on{color:var(--green)}
+.del{background:transparent;color:#d33;border-color:#d33;padding:5px 12px;margin-top:8px;font-size:13px}
+.row{display:flex;gap:8px;margin:10px 0;align-items:flex-end}.row.u{justify-content:flex-start}.row.s{justify-content:flex-end}.row.c{display:block}
+.chimg{width:40px;height:40px;border-radius:50%;flex:none}.b{max-width:80%;padding:10px 14px;border-radius:18px;line-height:1.7}.u .b{background:#e6ebf4;color:#16233a}.s .b{background:#e3f3e6;color:#16233a}
+#cs{display:flex;gap:8px;position:sticky;bottom:0;background:var(--bg);padding:8px 0}#cs input{margin:0}#cs button{width:auto;margin:0}</style></head><body><div id="app"><header>شغلني</header><main><div id="gt"><input id="q" placeholder="🔎 ابحث بالمهنة أو المدينة"><div id="ls"><p class="m">جاري التحميل…</p></div></div></main><nav id="nv"></nav></div>
+<script type="module">
+import{initializeApp}from"https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
+const cfg={apiKey:"AIzaSyBOSymlBsytF8zuMQOcMcCx1i-hhq0JwNg",authDomain:"shagool.firebaseapp.com",databaseURL:"https://shagool-default-rtdb.firebaseio.com",projectId:"shagool",storageBucket:"shagool.firebasestorage.app",messagingSenderId:"517694924484",appId:"1:517694924484:web:b33ec750f167dcb275cb91"};
+const $=s=>document.querySelector(s),esc=t=>String(t??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+import{getAuth,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+import{getDatabase,ref,onValue,get,push,remove}from"https://www.gstatic.com/firebasejs/12.19.0/firebase-database.js";
+const app=initializeApp(cfg),au=getAuth(app),db=getDatabase(app);
+const norm=t=>String(t||'').replace(/[\u064B-\u0652\u0640]/g,'').replace(/[أإآ]/g,'ا').replace(/ة/g,'ه').replace(/ى/g,'ي').toLowerCase();
+const PG=[['jobs.html','وظائف'],['seekers.html','باحثون','e'],['shaghool.html','شَغّول'],['profile.html','حسابي']];
+function nav(r){$('#nv').innerHTML=PG.filter(p=>p[2]!='e'||r=='employer').map(p=>`<a href="${p[0]}" class="${location.pathname.endsWith(p[0])?'on':''}">${p[1]}</a>`).join('')}
+let U=null,P=null,started=false;
+const km=(a,b,c,d)=>{const r=x=>x*Math.PI/180,h=Math.sin(r(c-a)/2)**2+Math.cos(r(a))*Math.cos(r(c))*Math.sin(r(d-b)/2)**2;return 12742*Math.asin(Math.sqrt(h))};
+const dk=x=>(P&&P.lat!=null&&x.lat!=null)?km(P.lat,P.lng,x.lat,x.lng):1e9;
+const mins=x=>Math.max(1,Math.round(dk(x)*1.3/30*60));
+const dist=x=>dk(x)>=1e9?'':`<div class="tag">📍 نحو ${(dk(x)*1.3).toFixed(1)} كم · حوالي ${mins(x)} دقيقة بالسيارة</div>`;
+onAuthStateChanged(au,u=>{if(!u||!u.emailVerified){location.href='login.html';return}U=u;
+ onValue(ref(db,'users/'+u.uid),s=>{P=s.val();if(!P)return;nav(P.role);if(!started){started=true;start()}})});
+const jobC=j=>`<div class="box"><b>${esc(j.title)}</b><div class="m">${esc(j.company)} · ${esc(j.city)}</div><p>${esc(j.desc)}</p>${dist(j)}<div class="m">📞 ${esc(j.contact)}</div>${U&&j.owner==U.uid?`<button class="del" data-id="${j.id}">حذف وظيفتي</button>`:''}</div>`;
+const seekC=s=>`<div class="box"><b>${esc(s.name)}</b><div class="m">${esc(s.profession)} · ${esc(s.city)} · خبرة: ${esc(s.experience)}</div><p>${esc(s.about)}</p>${dist(s)}<div class="m">📞 ${esc(s.phone)}</div></div>`;
+
+let S=[];
+function draw(){const q=norm($('#q').value),a=S.filter(s=>!q||norm([s.name,s.profession,s.city,s.about].join(' ')).includes(q));if(P.lat!=null)a.sort((x,y)=>dk(x)-dk(y));$('#ls').innerHTML=a.length?a.map(seekC).join(''):'<p class="m">لا يوجد باحثون ظاهرون بعد.</p>'}
+function start(){
+ if(P.role!='employer'){$('#gt').innerHTML='<div class="box">هذه الصفحة لأصحاب العمل فقط.</div>';return}
+ onValue(ref(db,'users'),s=>{S=[];s.forEach(c=>{const v=c.val();if(v.role=='seeker'&&v.visible)S.push(v)});draw()},e=>{$('#ls').innerHTML='<p class="er">تعذّر القراءة: '+e.code+'</p>'});
+ $('#q').oninput=draw}
+
+</script></body></html>
