@@ -15,9 +15,15 @@ a{color:var(--green)}label{color:var(--muted);font-size:13px;display:block;margi
 .top{display:flex;gap:14px;align-items:center}.av{width:62px;height:62px;border-radius:50%;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;flex:none}
 .tag{display:inline-block;background:#3fae5a22;color:var(--green);border-radius:99px;padding:2px 12px;font-size:13px;font-weight:700}
 .chk{display:flex;gap:8px;align-items:center;margin-top:12px;color:var(--text);font-size:15px}.chk input{width:auto;margin:0}
-</style></head><body><div id="app"><header>شغلني<button id="lo">خروج</button></header><main>
+#app{display:flex;flex-direction:column}main{flex:1}
+nav{position:sticky;bottom:0;display:flex;background:var(--card);border-top:1px solid var(--line)}
+nav a{flex:1;text-align:center;padding:14px 4px;color:var(--muted);text-decoration:none;font-weight:700}nav a.on{color:var(--green)}
+.del{background:transparent;color:#d33;border-color:#d33;padding:5px 12px;margin-top:8px;font-size:13px}
+.row{display:flex;gap:8px;margin:10px 0;align-items:flex-end}.row.u{justify-content:flex-start}.row.s{justify-content:flex-end}.row.c{display:block}
+.chimg{width:40px;height:40px;border-radius:50%;flex:none}.b{max-width:80%;padding:10px 14px;border-radius:18px;line-height:1.7}.u .b{background:#e6ebf4;color:#16233a}.s .b{background:#e3f3e6;color:#16233a}
+#cs{display:flex;gap:8px;position:sticky;bottom:0;background:var(--bg);padding:8px 0}#cs input{margin:0}#cs button{width:auto;margin:0}</style></head><body><div id="app"><header>شغلني<button id="lo">خروج</button></header><main>
 <div class="box"><div class="top"><div class="av" id="av">…</div><div><b id="hn" style="font-size:18px">جاري التحميل…</b><br><span class="tag" id="hr"></span><div class="m" id="he" dir="ltr" style="font-size:13px;margin-top:4px"></div></div></div></div>
-<div class="box" id="fm" hidden></div><p class="m" id="up" style="text-align:center;font-size:13px"></p></main></div>
+<div class="box" id="fm" hidden></div><p class="m" id="up" style="text-align:center;font-size:13px"></p></main><nav id="nv"></nav></div>
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
 const cfg={apiKey:"AIzaSyBOSymlBsytF8zuMQOcMcCx1i-hhq0JwNg",authDomain:"shagool.firebaseapp.com",databaseURL:"https://shagool-default-rtdb.firebaseio.com",projectId:"shagool",storageBucket:"shagool.firebasestorage.app",messagingSenderId:"517694924484",appId:"1:517694924484:web:b33ec750f167dcb275cb91"};
@@ -25,20 +31,24 @@ const $=s=>document.querySelector(s),esc=t=>String(t??'').replace(/[&<>"]/g,c=>(
 import{getAuth,onAuthStateChanged,signOut}from"https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 import{getDatabase,ref,onValue,update,serverTimestamp}from"https://www.gstatic.com/firebasejs/12.19.0/firebase-database.js";
 const app=initializeApp(cfg),au=getAuth(app),db=getDatabase(app);
-const F={employer:[['name','اسم الشركة'],['city','المدينة'],['sector','مجال عمل الشركة'],['phone','رقم التواصل'],['link','موقع أو صفحة الشركة'],['about','نبذة عن الشركة','t']],
- seeker:[['name','الاسم الكامل'],['city','المدينة'],['profession','المهنة المطلوبة'],['experience','سنوات الخبرة'],['phone','رقم الهاتف'],['about','نبذة عنك ومهاراتك','t']]};
+const F={employer:[['name','اسم الشركة'],['title','مسماك الوظيفي في الشركة'],['city','المدينة'],['sector','مجال عمل الشركة'],['phone','رقم التواصل'],['link','موقع أو صفحة الشركة'],['about','نبذة عن الشركة','t']],
+ seeker:[['name','الاسم الكامل'],['city','المدينة'],['profession','المسمى الوظيفي (مثال: محاسب)'],['experience','سنوات الخبرة'],['phone','رقم الهاتف'],['about','نبذة عنك ومهاراتك','t']]};
 const RL={employer:'صاحب عمل / شركة',seeker:'باحث عن عمل'};
 let uid=null,first=true;
+const PG=[['jobs.html','وظائف'],['seekers.html','باحثون','e'],['shaghool.html','شَغّول'],['profile.html','حسابي']];
+function nav(r){$('#nv').innerHTML=PG.filter(p=>p[2]!='e'||r=='employer').map(p=>`<a href="${p[0]}" class="${location.pathname.endsWith(p[0])?'on':''}">${p[1]}</a>`).join('')}
 $('#lo').onclick=()=>signOut(au);
 onAuthStateChanged(au,u=>{if(!u||!u.emailVerified){location.href='login.html';return}uid=u.uid;$('#he').textContent=u.email+' ✓';
  onValue(ref(db,'users/'+uid),s=>{const d=s.val();if(!d){$('#hn').textContent='لا توجد بيانات لهذا الحساب';return}
-  $('#hn').textContent=d.name||'';$('#av').textContent=(d.name||'?')[0];$('#hr').textContent=RL[d.role]||'';
+  $('#hn').textContent=d.name||'';$('#av').textContent=(d.name||'?')[0];$('#hr').textContent=RL[d.role]||'';nav(d.role);
   $('#up').textContent=d.updatedAt?'آخر تحديث: '+new Date(d.updatedAt).toLocaleString('ar'):'';
   if(first){first=false;build(d)}},e=>{$('#hn').textContent='تعذّر القراءة: '+e.code})});
 function build(d){const fm=$('#fm');fm.hidden=false;
  fm.innerHTML=F[d.role].map(([k,l,t])=>`<label>${l}</label>`+(t?`<textarea id="f_${k}" rows="3">${esc(d[k])}</textarea>`:`<input id="f_${k}" value="${esc(d[k])}">`)).join('')
  +(d.role=='seeker'?`<label class="chk"><input type="checkbox" id="f_visible" ${d.visible?'checked':''}> أسمح لأصحاب العمل برؤية ملفي</label>`:'')
- +'<button class="p" id="sv">حفظ التعديلات</button><p id="sm"></p>';
+ +'<label>الموقع (يُستخدم لحساب المسافة)</label><div class="m" id="lc"></div><button id="gp" style="width:100%;margin-top:6px">📍 حدّد موقعي الحالي</button><button class="p" id="sv">حفظ التعديلات</button><p id="sm"></p>';
+ const lcs=(a,b,t)=>{$('#lc').textContent=a!=null?`✓ محفوظ (${a.toFixed(4)}, ${b.toFixed(4)})${t?' · '+new Date(t).toLocaleDateString('ar'):''}`:'لم تحدد موقعك بعد'};lcs(d.lat,d.lng,d.locAt);
+ $('#gp').onclick=()=>{$('#lc').textContent='جاري تحديد الموقع… اسمح للمتصفح بذلك';navigator.geolocation?navigator.geolocation.getCurrentPosition(async p=>{try{await update(ref(db,'users/'+uid),{lat:p.coords.latitude,lng:p.coords.longitude,locAt:Date.now(),updatedAt:serverTimestamp()});lcs(p.coords.latitude,p.coords.longitude,Date.now())}catch(e){$('#lc').textContent='تعذّر الحفظ: '+e.code}},e=>{$('#lc').textContent='تعذّر تحديد الموقع: '+(e.code==1?'لم تسمح بالوصول للموقع':'حاول مرة أخرى')},{enableHighAccuracy:true,timeout:15000}):$('#lc').textContent='المتصفح لا يدعم تحديد الموقع'};
  $('#sv').onclick=async()=>{const o={updatedAt:serverTimestamp()};F[d.role].forEach(([k])=>o[k]=$('#f_'+k).value.trim());if(d.role=='seeker')o.visible=$('#f_visible').checked;
   try{await update(ref(db,'users/'+uid),o);$('#sm').textContent='تم الحفظ ✓';$('#sm').className='ok'}catch(e){$('#sm').textContent='تعذّر الحفظ: '+e.code;$('#sm').className='er'}}}
 </script></body></html>
