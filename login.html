@@ -1,0 +1,53 @@
+<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>شغلني - الدخول</title><style>
+:root{--navy:#12305a;--green:#3fae5a;--bg:#f4f6f9;--card:#fff;--text:#16233a;--muted:#6b7a90;--line:#e3e8ef}
+@media(prefers-color-scheme:dark){:root{--bg:#0d1420;--card:#172236;--text:#e8eef7;--muted:#93a3ba;--line:#26344c}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px "Segoe UI",Tahoma,Arial,sans-serif}
+#app{max-width:520px;margin:auto;min-height:100vh}
+header{background:var(--navy);color:#fff;font-weight:800;font-size:24px;padding:16px 18px;border-radius:0 0 24px 24px;display:flex;justify-content:space-between;align-items:center}
+header button{background:transparent;color:#fff;border:1px solid #ffffff88;font-size:14px;padding:6px 12px}
+main{padding:16px}.box{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:14px}
+input,select,textarea{width:100%;font:inherit;font-size:16px;padding:12px 14px;margin:5px 0;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--text)}
+button{font:inherit;cursor:pointer;border-radius:12px;padding:11px 16px;background:var(--card);color:var(--text);border:1px solid var(--line)}
+.p{background:var(--green);color:#fff;border-color:var(--green);font-weight:700;width:100%;margin-top:8px}
+.tabs{display:flex;gap:8px;margin-bottom:10px}.tabs button{flex:1}.tabs .on{background:var(--green);color:#fff;border-color:var(--green);font-weight:700}
+a{color:var(--green)}label{color:var(--muted);font-size:13px;display:block;margin-top:8px}
+.er{color:#d33}.ok{color:#2a9d4a}.m{color:var(--muted)}p{line-height:1.7}
+.top{display:flex;gap:14px;align-items:center}.av{width:62px;height:62px;border-radius:50%;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;flex:none}
+.tag{display:inline-block;background:#3fae5a22;color:var(--green);border-radius:99px;padding:2px 12px;font-size:13px;font-weight:700}
+.chk{display:flex;gap:8px;align-items:center;margin-top:12px;color:var(--text);font-size:15px}.chk input{width:auto;margin:0}
+</style></head><body><div id="app"><header>شغلني</header><main>
+<div class="box" id="mn"><div class="tabs"><button id="ti" class="on">دخول</button><button id="tr">حساب جديد</button></div>
+<div id="rg" hidden><label>نوع الحساب</label><select id="ro"><option value="seeker">باحث عن عمل</option><option value="employer">صاحب عمل / شركة</option></select>
+<input id="nm" placeholder="الاسم الكامل أو اسم الشركة"><input id="ct" placeholder="المدينة"></div>
+<input id="em" type="email" dir="ltr" placeholder="البريد الإلكتروني"><input id="pw" type="password" dir="ltr" placeholder="كلمة المرور (6 أحرف على الأقل)">
+<button class="p" id="sb">دخول</button><p><a href="#" id="fg">نسيت كلمة السر؟</a></p><p id="ms"></p></div>
+<div class="box" id="vf" hidden><h3>فعّل بريدك الإلكتروني</h3><p>أرسلنا رابط التفعيل إلى <b id="vm" dir="ltr"></b>. افتح الرسالة واضغط على الرابط (تفقّد البريد المزعج Spam أيضًا).</p>
+<button class="p" id="ck">فعّلت بريدي، تابع</button><button style="width:100%;margin-top:8px" id="rs">أعد إرسال الرابط</button><button style="width:100%;margin-top:8px" id="lo">خروج</button><p id="vs"></p></div>
+</main></div>
+<script type="module">
+import{initializeApp}from"https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
+const cfg={apiKey:"AIzaSyBOSymlBsytF8zuMQOcMcCx1i-hhq0JwNg",authDomain:"shagool.firebaseapp.com",databaseURL:"https://shagool-default-rtdb.firebaseio.com",projectId:"shagool",storageBucket:"shagool.firebasestorage.app",messagingSenderId:"517694924484",appId:"1:517694924484:web:b33ec750f167dcb275cb91"};
+const $=s=>document.querySelector(s),esc=t=>String(t??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+import{getAuth,onAuthStateChanged,createUserWithEmailAndPassword,signInWithEmailAndPassword,sendEmailVerification,sendPasswordResetEmail,signOut}from"https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+import{getDatabase,ref,set,serverTimestamp}from"https://www.gstatic.com/firebasejs/12.19.0/firebase-database.js";
+const app=initializeApp(cfg),au=getAuth(app),db=getDatabase(app);
+let mode='in',reg=false;
+const ERR={'auth/invalid-credential':'البريد أو كلمة المرور غير صحيحة','auth/email-already-in-use':'هذا البريد مسجّل من قبل','auth/weak-password':'كلمة المرور ضعيفة (6 أحرف على الأقل)','auth/invalid-email':'البريد غير صحيح','auth/too-many-requests':'محاولات كثيرة، انتظر قليلًا ثم أعد المحاولة','auth/user-not-found':'لا يوجد حساب بهذا البريد','auth/network-request-failed':'تحقق من الاتصال بالإنترنت'};
+const say=(el,t,ok)=>{el.textContent=t;el.className=ok?'ok':'er'};
+const showVerify=u=>{$('#mn').hidden=true;$('#vf').hidden=false;$('#vm').textContent=u.email};
+onAuthStateChanged(au,u=>{if(reg)return;if(!u){$('#mn').hidden=false;$('#vf').hidden=true;return}u.emailVerified?location.href='profile.html':showVerify(u)});
+const set_=m=>{mode=m;$('#rg').hidden=m=='in';$('#ti').className=m=='in'?'on':'';$('#tr').className=m=='in'?'':'on';$('#sb').textContent=m=='in'?'دخول':'إنشاء الحساب';$('#ms').textContent=''};
+$('#ti').onclick=()=>set_('in');$('#tr').onclick=()=>set_('up');
+$('#sb').onclick=async()=>{const e=$('#em').value.trim(),p=$('#pw').value,ms=$('#ms');ms.textContent='';if(!e||!p)return say(ms,'اكتب البريد وكلمة المرور');
+ try{if(mode=='in'){await signInWithEmailAndPassword(au,e,p);return}
+  const nm=$('#nm').value.trim(),ct=$('#ct').value.trim();if(!nm||!ct)return say(ms,'اكتب الاسم والمدينة');
+  reg=true;const c=await createUserWithEmailAndPassword(au,e,p);
+  await set(ref(db,'users/'+c.user.uid),{role:$('#ro').value,name:nm,city:ct,email:e,createdAt:serverTimestamp()});
+  await sendEmailVerification(c.user);reg=false;showVerify(c.user)}
+ catch(x){reg=false;say(ms,ERR[x.code]||('خطأ: '+(x.code||x.message)))}};
+$('#fg').onclick=async ev=>{ev.preventDefault();const e=$('#em').value.trim(),ms=$('#ms');if(!e)return say(ms,'اكتب بريدك في الخانة أولًا ثم اضغط نسيت كلمة السر');
+ try{await sendPasswordResetEmail(au,e);say(ms,'أرسلنا رابط إعادة تعيين كلمة السر إلى بريدك (تفقّد Spam أيضًا).',1)}catch(x){say(ms,ERR[x.code]||('خطأ: '+x.code))}};
+$('#rs').onclick=async()=>{try{await sendEmailVerification(au.currentUser);say($('#vs'),'تم إرسال الرابط من جديد',1)}catch(x){say($('#vs'),ERR[x.code]||('خطأ: '+x.code))}};
+$('#ck').onclick=async()=>{await au.currentUser.reload();au.currentUser.emailVerified?location.href='profile.html':say($('#vs'),'لم يتم التفعيل بعد، اضغط الرابط في بريدك أولًا')};
+$('#lo').onclick=()=>signOut(au).then(()=>{$('#vf').hidden=true;$('#mn').hidden=false});
+</script></body></html>
